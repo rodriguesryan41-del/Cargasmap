@@ -6,6 +6,7 @@ import { Navigation } from '@/components/navigation';
 import { useRouter } from 'next/navigation';
 import { Truck, MapPin, Save, Clock, Square, Gauge, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { saveTripOffline } from '@/lib/offline-sync';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 
@@ -39,29 +40,51 @@ export default function NovaViagemPage() {
     e.preventDefault();
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
-    try {
-      const vId = formData.get('vehicleId');
-      const vehicle = vehicles.find(v => v.prefix === vId);
-      
-      const { error } = await supabase.from('viagens').insert({
-        vehicle_id: vId,
-        material_id: formData.get('materialId'),
-        origin_id: formData.get('originId'),
-        destination_id: formData.get('destinationId'),
-        km_initial: Number(formData.get('kmInitial')),
-        km_final: Number(formData.get('kmFinal')),
-        volume: vehicle?.capacity || 0,
-        user_id: user?.id,
-        user_name: user?.user_metadata?.full_name || user?.email
-      });
+    
+    const vId = formData.get('vehicleId');
+    const vehicle = vehicles.find(v => v.prefix === vId);
+    
+    const tripData = {
+      vehicle_id: vId,
+      material_id: formData.get('materialId'),
+      origin_id: formData.get('originId'),
+      destination_id: formData.get('destinationId'),
+      km_initial: Number(formData.get('kmInitial')),
+      km_final: Number(formData.get('kmFinal')),
+      volume: vehicle?.capacity || 0,
+      user_id: user?.id,
+      user_name: user?.user_metadata?.full_name || user?.email,
+      timestamp: new Date().toISOString()
+    };
 
-      if (error) throw error;
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        saveTripOffline(tripData);
+        toast.success('Viagem salva localmente (Offline)!');
+        router.push('/');
+        return;
+      }
+
+      const { error } = await supabase.from('viagens').insert(tripData);
+
+      if (error) {
+        // If it's a network error, save offline
+        if (error.message.includes('Fetch') || error.code === 'PGRST301') {
+           saveTripOffline(tripData);
+           toast.success('Viagem salva localmente due to network error!');
+           router.push('/');
+           return;
+        }
+        throw error;
+      };
       
       toast.success('Viagem registrada!');
       router.push('/');
     } catch (error) {
       console.error(error);
-      toast.error('Erro ao salvar.');
+      toast.error('Erro ao salvar. Tentando salvar offline...');
+      saveTripOffline(tripData);
+      router.push('/');
     } finally { setIsSubmitting(false); }
   };
 

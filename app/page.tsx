@@ -15,10 +15,12 @@ import {
   Clock
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { getOfflineQueue, syncOfflineData } from '@/lib/offline-sync';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-hot-toast';
+import { RefreshCcw } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, signIn, signInWithEmail, signUpWithEmail } = useAuth();
@@ -32,6 +34,13 @@ export default function Dashboard() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
+  const [offlineCount, setOfflineCount] = useState(0);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOfflineCount(getOfflineQueue().length);
+    }
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,6 +233,28 @@ export default function Dashboard() {
     <div className="pb-32 pt-20 bg-surface min-h-screen">
       <Navigation />
       <main className="px-4 max-w-4xl mx-auto space-y-6">
+        {offlineCount > 0 && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => {
+              syncOfflineData().then(() => setOfflineCount(getOfflineQueue().length));
+            }}
+            className="w-full bg-[#ffb4ab] p-4 rounded-2xl flex items-center justify-between border border-[#93000a]/20 shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-[#93000a] text-white rounded-xl flex items-center justify-center">
+                <RefreshCcw size={20} className="animate-spin-slow" />
+              </div>
+              <div className="text-left">
+                <p className="text-[10px] font-bold text-[#93000a] uppercase tracking-widest leading-none mb-1">Dados Pendentes</p>
+                <p className="text-sm font-bold text-black">{offlineCount} {offlineCount === 1 ? 'viagem' : 'viagens'} gravadas offline</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-[#93000a] uppercase tracking-widest bg-white/50 px-3 py-1 rounded-full border border-[#93000a]/10">Sincronizar Agora</span>
+          </motion.button>
+        )}
+
         <section className="flex justify-between items-start">
           <div className="space-y-1">
             <h2 className="text-2xl font-bold text-black font-sans tracking-tight">Visão Geral do Canteiro</h2>
