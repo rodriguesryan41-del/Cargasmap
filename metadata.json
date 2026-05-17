@@ -1,0 +1,8 @@
+{
+  "name": "Controle de Escavação",
+  "description": "Sistema completo de controle de escavação e logística de materiais.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
